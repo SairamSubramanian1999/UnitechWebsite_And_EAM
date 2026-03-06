@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>HR Dashboard - Unitech</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="/css/dark-style.css">
+  <style>
+    .topbar .left .h1 { font-size: 22px; }
+    .topbar .actions { font-size: 13px; color:var(--muted); }
+    #attendanceChart { width:100%; height:220px; display:block; }
+  </style>
+</head>
+<body>
+  <div class="app">
+
+    <aside class="sidebar">
+      <div class="brand"><div class="logo">UE</div><h2>Unitech</h2></div>
+
+      <nav class="nav">
+        <a class="active" href="/hr/dashboard.html">Home</a>
+        <a href="/employee.html">Employees</a>
+        <a href="/admin/attendance.html">Attendance</a>
+        <a href="/hr/profile.html">Profile</a>
+        <a href="/logout">Logout</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+
+      <div class="topbar">
+        <div class="left">
+          <div>
+            <div class="h1">Welcome</div>
+            <div id="welcome-sub" class="muted">Hello, HR</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <div id="emp-id" class="muted small">ID: --</div>
+        </div>
+      </div>
+
+      <div class="grid">
+
+        <div class="col-8 card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <h3 class="h1" id="attendance-report-heading">My Attendance</h3>
+              <div class="muted">Monthly overview and daily hours</div>
+            </div>
+
+            <div>
+              <button id="btn-check-in" class="btn">Check In</button>
+              <button id="btn-check-out" class="btn secondary">Check Out</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <canvas id="attendanceChart"></canvas>
+          </div>
+
+          <div style="margin-top:12px;">
+            <table class="table" id="attendance-report-table">
+              <thead><tr><th>DATE</th><th>CHECK IN</th><th>CHECK OUT</th><th>DURATION</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="col-4">
+
+          <div class="card">
+            <h4 class="h1">Quick Info</h4>
+            <div id="quick-info" class="muted">Loading...</div>
+          </div>
+
+          <div class="card" style="margin-top:12px">
+            <h4 class="h1">Pending Leaves</h4>
+            <div class="muted" id="pending-leaves">Loading...</div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="footer">© Unitech Engineering Works</div>
+    </main>
+  </div>
+
+  <script src="/js/common.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/js/attendance-report.js"></script>
+  <script src="/js/attendance-widget.js"></script>
+
+  <script>
+    (async function(){
+      try {
+        const el = document.getElementById('pending-leaves');
+        const res = await fetch('/api/leave/hr/pending', { credentials: 'same-origin' });
+        if (!res.ok) { el.textContent = 'Unable to load'; return; }
+        const list = await res.json();
+        el.textContent = `${list.length} pending leave request(s)`;
+      } catch(e) { console.warn(e); }
+    })();
+  </script>
+
+</body>
+</html>

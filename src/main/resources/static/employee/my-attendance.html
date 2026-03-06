@@ -1,0 +1,193 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>My Attendance - Unitech</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="/css/dark-style.css">
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><div class="logo">UE</div><h2>Unitech</h2></div>
+      <nav class="nav">
+        <a href="/employee/dashboard.html">Home</a>
+        <a class="active" href="/employee/my-attendance.html">My Attendance</a>
+        <a href="/employee/profile.html">Profile</a>
+        <a href="/logout">Logout</a>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="left">
+          <div>
+            <div class="h1">My Attendance — <span id="ym-label"></span></div>
+            <div class="muted">Monthly overview and daily hours</div>
+          </div>
+        </div>
+        <div class="actions">
+          <div id="emp-id" class="muted small"></div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="col-8 card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <h3 class="h1">Monthly Chart</h3>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="month-select" class="input small"></select>
+              <select id="year-select" class="input small"></select>
+            </div>
+          </div>
+
+          <canvas id="attendanceChart" style="margin-top:12px; width:100%; height:340px;"></canvas>
+
+          <div style="margin-top:18px;">
+            <table class="table" id="attendance-table">
+              <thead><tr><th>DATE</th><th>CHECK IN</th><th>CHECK OUT</th><th>DURATION (hrs)</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="col-4">
+          <div class="card">
+            <h4 class="h1">Summary</h4>
+            <div style="margin-top:8px;">
+              <div><strong>Total days present:</strong> <span id="summary-days">-</span></div>
+              <div><strong>Total hours:</strong> <span id="summary-hours">-</span></div>
+              <div><strong>Average hrs/day:</strong> <span id="summary-avg">-</span></div>
+              <div><strong>First check-in:</strong> <span id="summary-first">-</span></div>
+              <div><strong>Late count:</strong> <span id="summary-late">-</span></div>
+              <div><strong>Missing days:</strong> <span id="summary-miss">-</span></div>
+              <div style="margin-top:12px;">
+                <div class="muted">Monthly goal progress</div>
+                <div style="background:rgba(255,255,255,0.03); border-radius:8px; overflow:hidden; margin-top:6px;">
+                  <div id="progress-bar" style="height:12px;border-radius:8px;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent-2));"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:12px">
+            <h4 class="h1">Help</h4>
+            <div class="muted">Contact HR for corrections to attendance.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">© Unitech Engineering Works</div>
+    </main>
+  </div>
+
+  <script src="/js/common.js"></script>
+  <script>
+    // helper to fill month/year selects and call backend
+    (function(){
+      const monthSel = document.getElementById('month-select');
+      const yearSel = document.getElementById('year-select');
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      for (let y = currentYear - 2; y <= currentYear + 1; y++) {
+        const opt = document.createElement('option');
+        opt.value = y; opt.textContent = y;
+        if (y === currentYear) opt.selected = true;
+        yearSel.appendChild(opt);
+      }
+      const months = ["01","02","03","04","05","06","07","08","09","10","11","12"];
+      months.forEach((m, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx+1;
+        opt.textContent = m;
+        if (idx === now.getMonth()) opt.selected = true;
+        monthSel.appendChild(opt);
+      });
+    })();
+
+    // Chart instance
+    let chart = null;
+
+    async function loadReport() {
+      try {
+        const year = parseInt(document.getElementById('year-select').value,10);
+        const month = parseInt(document.getElementById('month-select').value,10);
+        document.getElementById('ym-label').textContent = `${year}-${String(month).padStart(2,'0')}`;
+
+        const res = await fetch(`/api/attendance/month?year=${year}&month=${month}`, { credentials:'same-origin' });
+        if (!res.ok) throw new Error('Failed to load');
+        const data = await res.json();
+
+        // populate table
+        const tbody = document.querySelector('#attendance-table tbody');
+        tbody.innerHTML = '';
+        const days = data.days || [];
+        const labels = days.map(d => d.date.slice(-2));
+        const values = days.map(d => d.durationHours || 0);
+
+        days.forEach(d => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td>${d.date}</td><td>${d.checkIn || '-'}</td><td>${d.checkOut || '-'}</td><td>${d.durationHours == null ? '-' : d.durationHours}</td>`;
+          tbody.appendChild(tr);
+        });
+
+        // summary
+        const s = data.summary || {};
+        document.getElementById('summary-days').textContent = s.totalDaysPresent ?? '-';
+        document.getElementById('summary-hours').textContent = s.totalHours ?? '-';
+        document.getElementById('summary-avg').textContent = s.avgHoursPerDay ?? '-';
+        document.getElementById('summary-first').textContent = s.firstCheckIn ?? '-';
+        document.getElementById('summary-late').textContent = s.lateCount ?? '0';
+        document.getElementById('summary-miss').textContent = s.missingDays ?? '-';
+
+        // progress: let's consider 160 hrs per month goal (example)
+        const goal = 160;
+        const percent = ( (s.totalHours || 0) / goal ) * 100;
+        document.getElementById('progress-bar').style.width = Math.min(100, Math.round(percent)) + '%';
+
+        // chart
+        const ctx = document.getElementById('attendanceChart').getContext('2d');
+        if (chart) chart.destroy();
+        chart = new Chart(ctx, {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Hours',
+              data: values,
+              backgroundColor: 'rgba(30,144,255,0.9)'
+            }]
+          },
+          options: {
+            scales: {
+              x: { grid: { display: false }, ticks: { color: 'rgba(255,255,255,0.75)' } },
+              y: { beginAtZero: true, ticks: { color: 'rgba(255,255,255,0.75)' } }
+            },
+            plugins: {
+              legend: { display: false }
+            }
+          }
+        });
+
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    document.getElementById('month-select').addEventListener('change', loadReport);
+    document.getElementById('year-select').addEventListener('change', loadReport);
+
+    (async function init(){
+      try {
+        const me = await apiGet('/api/me');
+        document.getElementById('emp-id').textContent = `ID: ${me.id || ''}`;
+      } catch(e){}
+      await loadReport();
+    })();
+  </script>
+</body>
+</html>

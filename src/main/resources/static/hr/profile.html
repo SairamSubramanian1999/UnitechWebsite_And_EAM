@@ -1,0 +1,128 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>HR Profile - Unitech</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/dark-style.css">
+  <style>
+    .profile-card { padding:20px; border-radius:8px; background:#1e1e1e; margin-bottom:18px; }
+    .profile-card input { width:100%; margin-top:6px; padding:9px; border-radius:5px; border:1px solid #333; background:#2b2b2b; color:#fff; }
+    .btn { padding:10px 18px; background:#007bff; border:none; border-radius:6px; color:white; cursor:pointer; margin-top:10px; }
+    .btn:hover { background:#006ae0; }
+    #msg-box { display:none; padding:12px; margin-bottom:15px; border-radius:6px; font-weight:bold; }
+  </style>
+</head>
+<body>
+
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand"><div class="logo">UE</div><h2>Unitech</h2></div>
+    <nav class="nav">
+      <a href="/hr/dashboard.html">Home</a>
+      <a href="/employee.html">Employees</a>
+      <a href="/admin/attendance.html">Attendance</a>
+      <a class="active" href="/hr/profile.html">Profile</a>
+      <a href="/logout">Logout</a>
+    </nav>
+  </aside>
+
+  <main class="main">
+
+    <h2>HR Profile</h2>
+
+    <div id="msg-box"></div>
+
+    <div class="profile-card">
+      <h3>Your Details</h3>
+      <div id="profile-details">Loading...</div>
+    </div>
+
+    <div class="profile-card">
+      <h3>Update Email</h3>
+      <input id="new-email" type="email" placeholder="Enter new email">
+      <button class="btn" onclick="updateEmail()">Update Email</button>
+    </div>
+
+    <div class="profile-card">
+      <h3>Change Password</h3>
+      <input id="old-pass" type="password" placeholder="Old Password">
+      <input id="new-pass" type="password" placeholder="New Password">
+      <button class="btn" onclick="updatePassword()">Update Password</button>
+    </div>
+
+  </main>
+
+</div>
+
+<script>
+/* SAME SCRIPT AS ADMIN AND EMPLOYEE */
+function showMsg(text, error=false) {
+  const box = document.getElementById("msg-box");
+  box.style.display = "block";
+  box.style.background = error ? "#660000" : "#004d00";
+  box.style.color = "#fff";
+  box.textContent = text;
+  setTimeout(() => { box.style.display = "none"; }, 5000);
+}
+
+async function loadProfile() {
+  const res = await fetch('/api/profile');
+  const data = await res.json();
+  if (data.error) return showMsg(data.error, true);
+
+  document.getElementById('profile-details').innerHTML = `
+    <div><b>Name:</b> ${data.name}</div>
+    <div><b>Email:</b> ${data.email}</div>
+    <div><b>Role:</b> ${data.role}</div>
+    <div><b>Created At:</b> ${data.createdAt}</div>
+  `;
+}
+
+async function updateEmail() {
+  const email = document.getElementById('new-email').value;
+  if (!email) return showMsg("Email cannot be empty", true);
+
+  const res = await fetch('/api/profile/email', {
+    method:'PUT',
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ email })
+  });
+
+  const data = await res.json();
+  if (res.ok) {
+    showMsg(data.message);
+    setTimeout(() => { window.location.href = "/logout"; }, 2000);
+  } else {
+    showMsg(data.error, true);
+  }
+}
+
+async function updatePassword() {
+  const oldPass = document.getElementById('old-pass').value;
+  const newPass = document.getElementById('new-pass').value;
+
+  if (!oldPass || !newPass)
+    return showMsg("Both password fields required", true);
+
+  const res = await fetch('/api/profile/password', {
+    method:'PUT',
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ oldPassword: oldPass, newPassword: newPass })
+  });
+
+  const data = await res.json();
+  if (res.ok) {
+    showMsg(data.message);
+    setTimeout(() => { window.location.href = "/logout"; }, 2000);
+  } else {
+    showMsg(data.error, true);
+  }
+}
+
+loadProfile();
+</script>
+
+</body>
+</html>

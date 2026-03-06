@@ -1,0 +1,90 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Admin Dashboard - Unitech</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="/css/dark-style.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><div class="logo">UE</div><h2>Unitech</h2></div>
+
+      <nav class="nav">
+        <a class="active" href="/admin/dashboard.html">Home</a>
+        <a href="/admin/my-attendance.html">My Attendance</a>
+        <a href="/admin/employee-attendance.html">Employee Attendance</a>
+        <a href="/employee.html">Manage Employees</a>
+        <a href="/admin/profile.html">Profile</a>
+        <a href="/logout">Logout</a>
+      </nav>
+
+    </aside>
+
+    <main class="main">
+
+      <div class="topbar">
+        <div class="left">
+          <div>
+            <div class="h1">Welcome</div>
+            <div id="welcome-sub" class="muted">Hello, Admin</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <div id="emp-id" class="muted small">ID: --</div>
+        </div>
+      </div>
+
+      <div class="grid">
+
+        <div class="col-8 card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <h3 class="h1">Attendance</h3>
+              <div class="muted">Mark your attendance quickly</div>
+            </div>
+
+            <div>
+              <button id="btn-check-in" class="btn">Check In</button>
+              <button id="btn-check-out" class="btn secondary">Check Out</button>
+            </div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <table class="table" id="attendance-table">
+              <thead><tr><th>DATE</th><th>CHECK IN</th><th>CHECK OUT</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div style="margin-top:10px;">
+            <a href="/admin/my-attendance.html" class="muted">Open my monthly report »</a>
+          </div>
+        </div>
+
+        <div class="col-4">
+
+          <div class="card">
+            <h4 class="h1">Quick Info</h4>
+            <div id="quick-info" class="muted">Loading...</div>
+          </div>
+
+          <div class="card" style="margin-top:12px">
+            <h4 class="h1">Help</h4>
+            <div class="muted">Contact HR for corrections to attendance.</div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="footer">© Unitech Engineering Works</div>
+    </main>
+  </div>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/attendance-widget.js"></script>
+</body>
+</html>

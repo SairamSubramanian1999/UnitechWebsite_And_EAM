@@ -1,0 +1,251 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Employee Attendance - Admin</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <link rel="stylesheet" href="/css/dark-style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand"><div class="logo">UE</div><h2>Unitech</h2></div>
+    <nav class="nav">
+      <a href="/admin/dashboard.html">Home</a>
+      <a href="/admin/my-attendance.html">My Attendance</a>
+      <a class="active" href="/admin/employee-attendance.html">Employee Attendance</a>
+      <a href="/employee.html">Manage Employees</a>
+      <a href="/logout">Logout</a>
+    </nav>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div class="left">
+        <div>
+          <div class="h1">Employee Attendance Dashboard</div>
+          <div class="muted">View monthly attendance for any employee</div>
+        </div>
+      </div>
+      <div class="actions">
+        <div id="emp-id" class="muted small"></div>
+      </div>
+    </div>
+
+    <!-- GRID -->
+    <div class="grid">
+
+      <!-- LEFT SIDE (CHART + TABLE) -->
+      <div class="col-8 card">
+
+        <!-- FILTERS -->
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px;">
+          <select id="employee-select" class="input"></select>
+          <select id="month-select" class="input small"></select>
+          <select id="year-select" class="input small"></select>
+          <button id="btn-load" class="btn">Load</button>
+        </div>
+
+        <!-- CHART -->
+        <canvas id="employeeChart" style="width:100%;height:350px;"></canvas>
+
+        <!-- TABLE -->
+        <div style="margin-top:18px;">
+          <table class="table" id="employee-table">
+            <thead>
+              <tr>
+                <th>DATE</th>
+                <th>CHECK IN</th>
+                <th>CHECK OUT</th>
+                <th>DURATION (hrs)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <!-- RIGHT SIDE SUMMARY -->
+      <div class="col-4">
+
+        <div class="card">
+
+          <h4 class="h1">Summary</h4>
+
+          <div style="margin-top:8px;">
+            <div><strong>Total days present:</strong> <span id="sum-days">-</span></div>
+            <div><strong>Total hours:</strong> <span id="sum-hours">-</span></div>
+            <div><strong>Average hrs/day:</strong> <span id="sum-avg">-</span></div>
+            <div><strong>First check-in:</strong> <span id="sum-first">-</span></div>
+            <div><strong>Late count:</strong> <span id="sum-late">0</span></div>
+            <div><strong>Missing days:</strong> <span id="sum-miss">-</span></div>
+
+            <div style="margin-top:12px;">
+              <div class="muted">Monthly goal progress</div>
+              <div style="
+                background:rgba(255,255,255,0.03);
+                border-radius:8px;
+                overflow:hidden;
+                margin-top:6px;">
+                <div id="progress-bar"
+                     style="height:12px;border-radius:8px;width:0%;
+                     background:linear-gradient(90deg,var(--accent),var(--accent-2));">
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <h4 class="h1">Help</h4>
+          <div class="muted">Select employee → Choose month/year → Click Load</div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="footer">© Unitech Engineering Works</div>
+  </main>
+</div>
+
+<script src="/js/common.js"></script>
+
+<script>
+/* Populate dropdowns */
+(function () {
+  const monthSel = document.getElementById('month-select');
+  const yearSel = document.getElementById('year-select');
+  const now = new Date();
+  const currYear = now.getFullYear();
+
+  for (let y = currYear - 2; y <= currYear + 1; y++) {
+    const opt = new Option(y, y);
+    if (y === currYear) opt.selected = true;
+    yearSel.appendChild(opt);
+  }
+
+  const months = ["01","02","03","04","05","06","07","08","09","10","11","12"];
+  months.forEach((m, idx) => {
+    const opt = new Option(m, idx+1);
+    if (idx === now.getMonth()) opt.selected = true;
+    monthSel.appendChild(opt);
+  });
+})();
+
+/* Load employee list */
+async function loadEmployees() {
+  const sel = document.getElementById('employee-select');
+  sel.innerHTML = '';
+  sel.appendChild(new Option('Select employee',''));
+
+  try {
+    const list = await apiGet('/api/employees');
+    list.forEach(e => {
+      sel.appendChild(new Option(`${e.id} — ${e.name}`, e.id));
+    });
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+let chart = null;
+
+/* Load report */
+async function loadEmployeeReport() {
+  const id = document.getElementById('employee-select').value;
+  if (!id) return alert("Select employee");
+
+  const year = document.getElementById('year-select').value;
+  const month = document.getElementById('month-select').value;
+
+  try {
+    const res = await fetch(`/api/attendance/user/${id}/month?year=${year}&month=${month}`, {
+      credentials:'same-origin'
+    });
+
+    if (!res.ok) throw new Error("Failed to load");
+
+    const data = await res.json();
+    const days = data.days || [];
+
+    /* TABLE */
+    const tbody = document.querySelector('#employee-table tbody');
+    tbody.innerHTML = '';
+
+    const labels = days.map(d => d.date.slice(-2));
+    const values = days.map(d => d.durationHours || 0);
+
+    days.forEach(d => {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        `<td>${d.date}</td>
+         <td>${d.checkIn || '-'}</td>
+         <td>${d.checkOut || '-'}</td>
+         <td>${d.durationHours ?? '-'}</td>`;
+      tbody.appendChild(tr);
+    });
+
+    /* SUMMARY */
+    const s = data.summary || {};
+
+    document.getElementById('sum-days').textContent = s.totalDaysPresent ?? '-';
+    document.getElementById('sum-hours').textContent = s.totalHours ?? '-';
+    document.getElementById('sum-avg').textContent = s.avgHoursPerDay ?? '-';
+    document.getElementById('sum-first').textContent = s.firstCheckIn ?? '-';
+    document.getElementById('sum-late').textContent = s.lateCount ?? '0';
+    document.getElementById('sum-miss').textContent = s.missingDays ?? '-';
+
+    const goal = 160;
+    const percent = Math.min(100, Math.round(((s.totalHours || 0) / goal) * 100));
+    document.getElementById('progress-bar').style.width = percent + "%";
+
+    /* CHART */
+    const ctx = document.getElementById('employeeChart').getContext('2d');
+    if (chart) chart.destroy();
+
+    chart = new Chart(ctx, {
+      type:'bar',
+      data:{
+        labels,
+        datasets:[{
+          label:'Hours',
+          data:values,
+          backgroundColor:'rgba(111,156,255,0.9)'
+        }]
+      },
+      options:{
+        scales:{
+          x:{ grid:{display:false} },
+          y:{ beginAtZero:true }
+        },
+        plugins:{ legend:{display:false} }
+      }
+    });
+
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+document.getElementById('btn-load').addEventListener('click', loadEmployeeReport);
+
+(async function init(){
+  try {
+    const me = await apiGet('/api/me');
+    document.getElementById('emp-id').textContent = `ID: ${me.id || ''}`;
+  } catch(e){}
+  await loadEmployees();
+})();
+</script>
+
+</body>
+</html>
